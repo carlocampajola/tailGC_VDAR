@@ -7,15 +7,15 @@ GCtailLR <- function(Z, p = 1, conf_level = 0.05, method = "LL"){
   x <- Z[,1]
   y <- Z[,2]
   if(method == "LL"){
-    BiDAR <- estimateBiDARpLL(Z,p,...)
-    outXy <- BiDAR[[1]]
-    outYx <- BiDAR[[2]]
-    outDARx <- estimateDARpLL(x,p,...)
-    outDARy <- estimateDARpLL(y,p,...)
+    BiDAR <- estimateBiDARpLL(Z,p)
+    outXy <- extractModelRes(BiDAR, 1)
+    outYx <- extractModelRes(BiDAR, 2)
+    outDARx <- estimateDARpLL(x,p)
+    outDARy <- estimateDARpLL(y,p)
   } else if(method == "YW"){ ### STILL NOT IMPLEMENTED
     BiDAR <- estimateBiDARpYW(Z,p)
-    outXy <- BiDAR[[1]]
-    outYx <- BiDAR[[2]]
+    outXy <- extractModelRes(BiDAR, 1)
+    outYx <- extractModelRes(BiDAR, 2)
     outDARx <- estimateDARpYW(x,p)
     outDARy <- estimateDARpYW(y,p)
   } else {
@@ -226,7 +226,12 @@ loglikt_DARp <- function(xt, xtmp, p, nu, gamma, chi){
   if(length(xtmp) != p) stop(paste0("ERROR: incorrect dimension of xtmp argument \n Expected ", p, ", got ", dim(xtmp), " instead"))
   if(length(nu) != 1 | (length(gamma) != p-1 & p>1) | length(chi) != 1) stop("ERROR: incorrect dimension of model parameters")
   
-  copyterm <- sum(gamma*1*(xt == xtmp[p:2])) + (1-sum(gamma))*1*(xt==xtmp[1])
+  if(p > 1){
+    copyterm <- sum(gamma*1*(xt == xtmp[p:2])) + (1-sum(gamma))*1*(xt==xtmp[1])
+  } else {
+    copyterm <- 1*(xt == xtmp)
+  }
+  
   nocopyterm <- (chi^xt) * ((1 - chi)^(1 - xt))
   out <- log(nu*copyterm + (1-nu)*nocopyterm)
   

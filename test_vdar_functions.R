@@ -45,3 +45,4 @@ for(t in 1:Tmax){
 
 out <- estimateBiDARpLL(Z, p, lr=0.001, maxiter=1000)
 
+GCtailLR(Z)
