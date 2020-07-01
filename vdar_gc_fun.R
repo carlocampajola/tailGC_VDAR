@@ -1,6 +1,38 @@
 #### VDAR GRANGER CAUSALITY TEST FUNCTIONS
 
-#### test function for bivariate time series ####
+#### pairwise test optimizing order in multivariate time series ####
+GCTailTest <- function(Z, maxp=1, conf_level = 0.05, method = "LL"){
+  N <- ncol(Z)
+  GCtail_mat <- order_mat <- pval_mat <- matrix(0, N, N)
+  
+  for(i in 1:(N-1)){
+    for(j in (i+1):N){
+      Zsel <- Z[,c(i,j)]
+      order_mat[i,j] <- order_mat[j,i] <- AIC_GCtail(Zsel, maxp=maxp)$selection
+      res <- GCtailLR(Zsel, order_mat[i,j], conf_level=conf_level, method=method)
+      GCtail_mat[i,j] <- 1*res$XtoY$result
+      GCtail_mat[j,i] <- 1*res$YtoX$result
+      pval_mat[i,j] <- res$XtoY$p.value
+      pval_mat[j,i] <- res$YtoX$p.value
+    }
+  }
+  
+  out <- list(GC_adjacency = GCtail_mat, p.values = pval_mat, order_mat = order_mat)
+}
+
+#### AIC criterion for BiDAR model selection ####
+AIC_GCtail <- function(Z, maxp=5){
+  aicvec <- rep(0, maxp)
+  for(p in 1:maxp){
+    BiDAR <- estimateBiDARpLL(Z,p)
+    npar <- 6 + 4*(p-1)
+    aicvec[p] <- 2*npar - 2*(BiDAR$logLx + BiDAR$logLy)
+  }
+  out <- list(selection=which.min(aicvec), criteria=aicvec)
+  return(out)
+}
+
+#### test function for bivariate time series for given order ####
 ## Z = Tx2 numeric array, p = order of BiDAR(p) model if specified, conf_level = confidence level to reject null, method = "LL" or "YW" to fit BiDAR (YW not implemented yet)
 GCtailLR <- function(Z, p = 1, conf_level = 0.05, method = "LL"){
   if(dim(Z)[2] != 2 | is.null(dim(Z))) stop("ERROR in GCtailLR: Not a bivariate time series")
@@ -8,8 +40,6 @@ GCtailLR <- function(Z, p = 1, conf_level = 0.05, method = "LL"){
   y <- Z[,2]
   if(method == "LL"){
     BiDAR <- estimateBiDARpLL(Z,p)
-    outXy <- extractModelRes(BiDAR, 1)
-    outYx <- extractModelRes(BiDAR, 2)
     outDARx <- estimateDARpLL(x,p)
     outDARy <- estimateDARpLL(y,p)
   } else if(method == "YW"){ ### STILL NOT IMPLEMENTED
@@ -21,8 +51,8 @@ GCtailLR <- function(Z, p = 1, conf_level = 0.05, method = "LL"){
   } else {
     stop("ERROR in GCtailLR: method argument not valid")
   }
-  logLxcondy <- outXy$LogLx
-  logLycondx <- outYx$LogLx
+  logLxcondy <- BiDAR$logLx
+  logLycondx <- BiDAR$logLy
   logLx0 <- outDARx$logL
   logLy0 <- outDARy$logL
   
@@ -36,7 +66,8 @@ GCtailLR <- function(Z, p = 1, conf_level = 0.05, method = "LL"){
   
   output <- list(YtoX = list(stat = statLRtestX, p.value = pyTGCx, result = yTGCx), 
                  XtoY = list(stat = statLRtestY, p.value = pxTGCy, result = xTGCy),
-                 call = list(Z=Z, p=p, conf_level=conf_level, method=method))
+                 call = list(p=p, conf_level=conf_level, method=method),
+                 Z=Z)
   
   return(output)
 }
@@ -214,7 +245,7 @@ estimateDARpLL <- function(x, p, nu0=0.5, gamma0 = NULL, chi0 = 0.5, lr=0.01, ma
   chiopt <- optpars[2]
   gammaopt <- optpars[3:length(optpars)]
   
-  logLx <- opt$value
+  logLx <- -opt$value
   
   output <- list(nu = nuopt, chi = chiopt, gamma = gammaopt,
                  logLx=logLx)
@@ -253,12 +284,21 @@ gradt_DARp <- function(xt, xtmp, p, nu, gamma, chi){
   if(length(xtmp) != p) stop(paste0("ERROR: incorrect dimension of xtmp argument \n Expected ", p, ", got ", dim(xtmp), " instead"))
   if(length(nu) != 1 | (length(gamma) != p-1 & p>1) | length(chi) != 1) stop("ERROR: incorrect dimension of model parameters")
   
-  copyterm <- sum(gamma*1*(xt == xtmp[p:2])) + (1-sum(gamma))*1*(xt==xtmp[1])
+  if(p > 1){
+    copyterm <- sum(gamma*1*(xt == xtmp[p:2])) + (1-sum(gamma))*1*(xt==xtmp[1])
+  } else {
+    copyterm <- 1*(xt == xtmp)
+  }
+  
   nocopyterm <- (chi^xt) * ((1 - chi)^(1 - xt))
   den <- (nu*copyterm + (1-nu)*nocopyterm)
   dnu <- (copyterm - nocopyterm)/den
   dchi <- (1-nu)*(2*xt - 1)/den
-  dgamma <- nu*(1*(xt == xtmp[p:2]) - 1*(xt==xtmp[1]))/den
+  if(p > 1){
+    dgamma <- nu*(1*(xt == xtmp[p:2]) - 1*(xt==xtmp[1]))/den
+  } else {
+    dgamma <- 0
+  }
   
   out <- c(dnu, dchi, dgamma)
   
@@ -351,6 +391,6 @@ gdesc_Nesterov <- function(par, fn, gr, ..., lower=NA, upper=NA, lr=0.01, maxite
   percimprove <- 100*value/initvalue
   cat(paste("Converged after", iter, "iterations - fn value", round(value, 3), 
             "\n final loglikelihood is", round(percimprove,2), "% of starting value",
-            "\n final gradient norm", round(sqrt(sum(grad^2)),2))[1])
+            "\n final gradient norm", round(sqrt(sum(grad^2)),2),"\n")[1])
   return(list(par=par, value=value))
 }

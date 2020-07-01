@@ -19,8 +19,8 @@ out <- estimateDARpLL(x, p, lr=0.0001, maxiter=10000)
 #####
 ## sample BiDAR(p)
 
-source("vdar_gc_fun.R")
-p <- 3
+source("/mnt/Data/PhD/tailGC_VDAR/vdar_gc_fun.R")
+p <- 7
 Z <- matrix(rbinom(p*2, 1, 0.5), ncol=2)
 nu0 <- c(0.7, 0.4)
 chi0 <- c(0.5, 0.5)
@@ -29,6 +29,9 @@ Tmax <- 3000
 lambda0 <- c(0.6,0.4)
 selfgamma <- 1/p + seq(1/(2*p), -1/(2*p), length.out =  p-1)
 crossgamma <- 1/(2*p) + seq(1/(3*p), -1/(3*p), length.out =  p-1)
+
+selfgamma <- rep(0,p-1)
+crossgamma <- rep(0,p-1)
 gamma0 <- array(0, dim=c(2,2,p-1))
 
 for(ord in 1:(p-1)){
@@ -45,4 +48,4 @@ for(t in 1:Tmax){
 
 out <- estimateBiDARpLL(Z, p, lr=0.001, maxiter=1000)
 
-GCtailLR(Z)
+test <- GCTailTest(Z, 8)
