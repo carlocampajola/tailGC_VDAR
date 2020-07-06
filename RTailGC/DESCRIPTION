@@ -1,0 +1,15 @@
+Package: RTailGC
+Title: Methods to detect Granger Causality in tails
+Version: 0.9.0
+Authors@R: 
+    c(person(given = "Carlo",
+           family = "Campajola",
+           role = c("aut", "cre"),
+           email = "carlo.campajola@sns.it"),
+	person("Piero", "Mazzarisi", role="aut"))
+Description: Suite of methods for the detection of Granger Causality in tails, including the method developed by Hong et al. (2009) and the one developed by Mazzarisi et al. (2020).
+License: `use_gpl3_license()`
+Encoding: UTF-8
+LazyData: true
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.1.1
